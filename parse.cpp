@@ -3,24 +3,47 @@
 #include <iostream>
 #include <string>
 #include "cstring"
-#include <regex>
+#include <boost/regex.hpp>
 #include <vector>
 
 using namespace std;
 using namespace sqlite3x;
 
+/**
+ * @brief XML Patent Document Parser
+ *
+ * This class doesn't practice proper encapsulation.
+ * Just read from the (non-null) string fields
+ *  id, description, abstract, and tags
+ */
 class Patent {
 private:
     pugi::xml_document doc;
     pugi::xml_node root;
-    bool success;
-    
+
+    /**
+     * @brief Clean the input of references
+     * @param content
+     * @return a cleaned copy
+     */
+    string sanitize(string content) {
+        boost::regex inline_references(R"(\([ ]*[0-9][0-9a-z,.; ]*\))");
+        content = boost::regex_replace(content, inline_references, "");
+
+        boost::regex alpha_inline_references(R"(\([ ]*[A-Za-z]\))");
+        return boost::regex_replace(content, alpha_inline_references, "");
+    }
+
     /**
      * Try to extract a snippet of at least target_length characters from the
      * values of a node and its children in a depth-first manner.
+     * @brief extract a snippet of at least target_length characters
+     * @param node
+     * @param target_length
+     * @return a non-null string of approximately the target length
      */
     string snippet(pugi::xml_node node, unsigned int target_length) {
-        string content = node.value();
+        string content = sanitize(node.value());
         if (not content.empty()) {
             // Add a space if it's not empty to keep lines apart
             content += "\n";
@@ -34,10 +57,11 @@ private:
             }
         return content;
     }
-    
+
     /**
-     * Search for the first English abstract in the text, and try to get a
-     * snippet of at least 100 characters from it.
+     * @brief Extract about 100 chars from the first English `node_name' tag
+     * @param node_name
+     * @return the extracted text
      */
     string extract_english(string node_name) {
         for (auto abstract_node : root.children(node_name.c_str())) {
@@ -53,21 +77,18 @@ private:
      * Collect all of the IPCR tags
      */
     string extract_tags() {
-        regex tag_regex("\w+");
-        smatch match;
         string out = "";
-        //return snippet(root.first_element_by_path("bibliographic-data/technical-data/classifications-ipcr"), 1000);
         auto tags_parent = root.first_element_by_path("bibliographic-data/technical-data/classifications-ipcr");
         for (auto tag_node : tags_parent.children()) {
             string long_tag = tag_node.child_value();
-
-            if (regex_search(long_tag, match, tag_regex)) {
-                string short_tag = match[1].str();
-                cout << short_tag << endl;
-                ipcr_tags.push_back(short_tag);
-                out += short_tag + " ";
+            string short_tag;
+            for (char c : long_tag) {
+                if (c == ' ')
+                    break;
+                else
+                    short_tag += c;
             }
-            out += long_tag + "\n";
+            out += short_tag + " ";
         }
         return out;
     }
@@ -77,7 +98,7 @@ public:
     string description;
     string id;
     string tags;
-    vector<string> ipcr_tags;
+    string error_log;
 
     /**
      * Parse a document from file
@@ -99,38 +120,42 @@ public:
         cout << "Description: " << description << endl;
         */
 
-        if (abstract.empty()
-                //or description.empty()
-                or id.empty())
-            success = false;
-        else
-            success = true;
+        if (abstract.empty())
+            error_log += "Missing abstract\n";
+        if (id.empty())
+            error_log += "Missing ID\n";
+        if (tags.empty())
+            error_log += "Could not find any IPCR tags.\n";
     }
     
     /**
      * Return whether any document was successfully parsed
      */
     bool empty() {
-        return not success;
+        return not error_log.empty();
     }
 };
 
 /**
  * Parse each of the XML files and insert them into the database
  */
-int main(int argc, const char * argv[]) { 
-    string filename = "";
+int main(int argc, const char * argv[]) {
+
+    // Arguments
     if (argc < 3) {
         cerr << "Usage: parsexml <db> <document> [document ..]" << endl;
         return 2;
     }
     
+    // Database setup
     sqlite3_connection conn(argv[1]);
     conn.setbusytimeout(60000);
     conn.executenonquery("PRAGMA synchronous=0;");
     sqlite3_command insert_patent(conn, "INSERT OR REPLACE INTO patents (id, abstract, description, tags) VALUES (?, ?, ?, ?);");
-    sqlite3_command insert_log(conn, "INSERT INTO log (id, filename, success) VALUES (?, ?, ?);");
+    sqlite3_command insert_log(conn, "INSERT INTO log (id, filename, success, message) VALUES (?, ?, ?, ?);");
     
+
+    // Load each patent file
     for (int i=2; i<argc; i++) {
         Patent p(argv[i]);
         insert_log.bind(1, p.id);
@@ -139,6 +164,7 @@ int main(int argc, const char * argv[]) {
         if(p.empty()) {
             cout << "Parse failed on " << argv[i] << endl;
             insert_log.bind(3, 0);
+            insert_log.bind(4, p.error_log);
         } else {
             insert_patent.bind(1, p.id);
             insert_patent.bind(2, p.abstract);
@@ -146,6 +172,7 @@ int main(int argc, const char * argv[]) {
             insert_patent.bind(4, p.tags);
             insert_patent.executenonquery();
             insert_log.bind(3, 1);
+            insert_log.bind(4, "");
             cout << "Parse succeeded on " << argv[i] << endl;
         }
         insert_log.executenonquery();

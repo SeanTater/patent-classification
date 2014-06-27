@@ -39,3 +39,5 @@ else:win32:!win32-g++:CONFIG(debug, debug|release): PRE_TARGETDEPS += $$PWD/debu
 else:unix: PRE_TARGETDEPS += $$PWD/libpugixml.a
 
 
+
+unix|win32: LIBS += -lboost_regex
