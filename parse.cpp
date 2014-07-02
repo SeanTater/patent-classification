@@ -1,10 +1,15 @@
 #include <pugixml.hpp>
 #include <sqlite3x-master/sqlite3x.hpp>
 #include <iostream>
+#include <fstream>
 #include <string>
 #include "cstring"
 #include <boost/regex.hpp>
 #include <vector>
+#include <boost/algorithm/string/predicate.hpp>
+#include <boost/algorithm/string/join.hpp>
+#include <boost/algorithm/string/case_conv.hpp>
+#include <boost/algorithm/string/replace.hpp>
 
 using namespace std;
 using namespace sqlite3x;
@@ -27,10 +32,10 @@ private:
      * @return a cleaned copy
      */
     string sanitize(string content) {
-        boost::regex inline_references(R"(\([ ]*[0-9][0-9a-z,.; ]*\))");
+        boost::regex inline_references(R"lit((\([ ]*[0-9][0-9a-z,.; ]*\)))lit");
         content = boost::regex_replace(content, inline_references, "");
 
-        boost::regex alpha_inline_references(R"(\([ ]*[A-Za-z]\))");
+        boost::regex alpha_inline_references(R"lit((\([ ]*[A-Za-z]\)))lit");
         return boost::regex_replace(content, alpha_inline_references, "");
     }
 
@@ -93,25 +98,88 @@ private:
         return out;
     }
 
+    /**
+     * @brief Split content on sentence boundaries
+     * @param content
+     * @return copy of content, with boundaries replaced
+     *
+     * Actually splitting the strings would result in serious overhead.
+     * So instead, the boundaries are replaced with an easy-to-distinguish
+     * character, ASCII unit separator \x1f (dec 31)
+     */
+    string split_sentences(string content) {
+        content = boost::regex_replace(content, source_re, [](boost::smatch phrase){
+            // To check: binary_search(source_phrases.begin(), source_phrases.end(), boost::to_lower_copy(phrase.str())) << endl;
+            cout << "replaced " << phrase.str() << endl;
+            return boost::replace_all_copy(phrase.str(), " ", "\xc2\xa0");
+        });
+
+        boost::regex sentence_breaks(R"lit(([\.!\?]( |^)))lit");
+        return boost::regex_replace(content, sentence_breaks, "\1\x1f");
+    }
+
+    /**
+     * @brief Load a new list of no-break phrases
+     * @param filename
+     * @return the new phrases
+     */
+    void load_phrase_list(string filename) {
+        ifstream source(filename);
+        string phrase;
+        getline(source, phrase);
+        while (not phrase.empty()) {
+            boost::to_lower(phrase);
+            Patent::source_phrases.push_back(phrase);
+            Patent::cleaned_phrases.push_back(sanitize_for_regex(phrase));
+            getline(source, phrase);
+        }
+        sort(source_phrases.begin(), source_phrases.end());
+        sort(cleaned_phrases.begin(), cleaned_phrases.end());
+    }
+
+    /**
+     * @brief Sanitize a regex as a literal
+     * @param content
+     * @return the new literal regex segment
+     *
+     * This came from Amber on StackOverflow
+     */
+    string sanitize_for_regex(string content) {
+        const boost::regex esc("[\\^\\.\\$\\|\\(\\)\[\\]\\*\\+\\?\\/\\\\]");
+        const string rep("\\\\\\1&");
+        return boost::regex_replace(content, esc, rep, boost::match_default | boost::format_sed);
+    }
+
 public:
     string abstract;
     string description;
     string id;
     string tags;
     string error_log;
+    static vector<string> source_phrases;
+    static vector<string> cleaned_phrases;
+    static boost::regex source_re;
 
     /**
      * Parse a document from file
      */
     Patent(string filename) {
+        // TODO: Specify these filenames somewhere
+        if (source_phrases.empty()) {
+            load_phrase_list("source.list");
+            // Is such a large RE a good idea?
+            source_re = boost::regex("(?<= )(" + boost::join(cleaned_phrases, "|") + ")",
+                                     boost::regex::icase);
+        }
+
         pugi::xml_parse_result result = doc.load_file(filename.c_str());
         //cout << "Load result: " << result.description() << endl;
-        
+
         root = doc.child("patent-document");
-        
+
         id = root.attribute("ucid").value();
-        abstract = extract_english("abstract");
-        description = extract_english("description");
+        abstract = split_sentences(extract_english("abstract"));
+        description = split_sentences(extract_english("description"));
         tags = extract_tags();
         
         /*
@@ -135,6 +203,10 @@ public:
         return not error_log.empty();
     }
 };
+
+vector<string> Patent::source_phrases;
+vector<string> Patent::cleaned_phrases;
+boost::regex Patent::source_re;
 
 /**
  * Parse each of the XML files and insert them into the database
