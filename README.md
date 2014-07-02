@@ -8,10 +8,10 @@ Installing
 ----------
 
 You will need:
-  pugixml
-  boost, at least:
-    regex
-    algorithm
+-  pugixml
+-  boost, at least:
+  -  regex
+  -  algorithm
 
 sqlite3x is included so you don't need it.
 
