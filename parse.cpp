@@ -68,14 +68,12 @@ private:
      * @param node_name
      * @return the extracted text
      */
-    string extract_english(string node_name) {
-        for (auto abstract_node : root.children(node_name.c_str())) {
-            auto lang = abstract_node.attribute("lang");
-            if (not lang.empty() and string(lang.value()) == "EN") {
-                return snippet(abstract_node, 100);
-            }
-        }
-        return "";
+    string extract_english(string target_tag_name, unsigned int length=100) {
+        pugi::xml_node target = root.find_node([&](pugi::xml_node& node){
+            auto lang = node.attribute("lang");
+            return node.name() == target_tag_name and not lang.empty() and string(lang.value()) == "EN";
+        });
+        return snippet(target, length);
     }
 
     /**
@@ -85,15 +83,9 @@ private:
         string out = "";
         auto tags_parent = root.first_element_by_path("bibliographic-data/technical-data/classifications-ipcr");
         for (auto tag_node : tags_parent.children()) {
-            string long_tag = tag_node.child_value();
-            string short_tag;
-            for (char c : long_tag) {
-                if (c == ' ')
-                    break;
-                else
-                    short_tag += c;
-            }
-            out += short_tag + " ";
+            string tag = string(tag_node.child_value()).substr(0, 3);
+            if (out.find(tag) == string::npos)
+                out += tag + " ";
         }
         return out;
     }
@@ -151,6 +143,7 @@ private:
     }
 
 public:
+    string title;
     string abstract;
     string description;
     string id;
@@ -178,7 +171,8 @@ public:
         root = doc.child("patent-document");
 
         id = root.attribute("ucid").value();
-        abstract = split_sentences(extract_english("abstract"));
+        title = split_sentences(extract_english("invention-title"));
+        abstract = split_sentences(extract_english("abstract", -1));
         description = split_sentences(extract_english("description"));
         tags = extract_tags();
         
@@ -223,7 +217,7 @@ int main(int argc, const char * argv[]) {
     sqlite3_connection conn(argv[1]);
     conn.setbusytimeout(60000);
     conn.executenonquery("PRAGMA synchronous=0;");
-    sqlite3_command insert_patent(conn, "INSERT OR REPLACE INTO patents (id, abstract, description, tags) VALUES (?, ?, ?, ?);");
+    sqlite3_command insert_patent(conn, "INSERT OR REPLACE INTO patents (id, abstract, description, tags, title) VALUES (?, ?, ?, ?, ?);");
     sqlite3_command insert_log(conn, "INSERT INTO log (id, filename, success, message) VALUES (?, ?, ?, ?);");
     
 
@@ -242,6 +236,7 @@ int main(int argc, const char * argv[]) {
             insert_patent.bind(2, p.abstract);
             insert_patent.bind(3, p.description);
             insert_patent.bind(4, p.tags);
+            insert_patent.bind(5, p.title);
             insert_patent.executenonquery();
             insert_log.bind(3, 1);
             insert_log.bind(4, "");
