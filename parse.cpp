@@ -12,7 +12,7 @@
 #include <boost/algorithm/string/replace.hpp>
 
 using namespace std;
-using namespace sqlite3x;
+using namespace sqlite3x; // because it uses prefixes
 
 /**
  * @brief XML Patent Document Parser
@@ -160,7 +160,10 @@ public:
         // TODO: Specify these filenames somewhere
         if (source_phrases.empty()) {
             load_phrase_list("source.list");
-            // Is such a large RE a good idea?
+            /* This oversized RE is a major performance loss
+             * A binary search would be faster, and a trie faster still
+             * But writing this is easier and I think the breakeven point
+             * is maybe 10M patents */
             source_re = boost::regex("(?<= )(" + boost::join(cleaned_phrases, "|") + ")",
                                      boost::regex::icase);
         }
@@ -175,12 +178,6 @@ public:
         abstract = split_sentences(extract_english("abstract", -1));
         description = split_sentences(extract_english("description"));
         tags = extract_tags();
-        
-        /*
-        cout << "ID: " << id << endl;
-        cout << "Abstract: " << abstract << endl;
-        cout << "Description: " << description << endl;
-        */
 
         if (abstract.empty())
             error_log += "Missing abstract\n";
