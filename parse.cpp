@@ -171,7 +171,7 @@ public:
         root = doc.child("patent-document");
 
         id = root.attribute("ucid").value();
-        title = split_sentences(extract_english("invention-title"));
+        title = split_sentences(extract_english("invention-title", -1));
         abstract = split_sentences(extract_english("abstract", -1));
         description = split_sentences(extract_english("description"));
         tags = extract_tags();
