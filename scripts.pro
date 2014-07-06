@@ -3,7 +3,7 @@
 ######################################################################
 
 TEMPLATE = app
-TARGET = parsepatents
+TARGET = patent
 DEPENDPATH += . includes
 INCLUDEPATH += . includes
 QMAKE_CXXFLAGS += -std=c++11
@@ -11,13 +11,17 @@ QMAKE_CXXFLAGS += -std=c++11
 # Input
 HEADERS += includes/pugiconfig.hpp includes/pugixml.hpp \
     includes/sqlite3x.hpp \
-    includes/sqlite3x-master/sqlite3x.hpp
+    includes/sqlite3x-master/sqlite3x.hpp \
+    bayes.h \
+    patentparse.h
 SOURCES += parse.cpp \
     includes/sqlite3x-master/sqlite3x_command.cpp \
     includes/sqlite3x-master/sqlite3x_connection.cpp \
     includes/sqlite3x-master/sqlite3x_exception.cpp \
     includes/sqlite3x-master/sqlite3x_reader.cpp \
-    includes/sqlite3x-master/sqlite3x_transaction.cpp
+    includes/sqlite3x-master/sqlite3x_transaction.cpp \
+    bayes.cpp \
+    patentparse.cpp
 
 
 unix|win32: LIBS += -lsqlite3
