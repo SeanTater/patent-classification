@@ -2,6 +2,8 @@
 #include <sqlite3x-master/sqlite3x.hpp>
 #include <iostream>
 #include <string>
+#include <thread>
+#include <future>
 #include <vector>
 #include <boost/program_options.hpp>
 
@@ -77,9 +79,9 @@ int main(int argc, const char * argv[]) {
         insert_log.bind(2, filename);
 
         if(p.empty()) {
-            cout << "Parse failed on " << filename << endl;
             insert_log.bind(3, 0);
             insert_log.bind(4, p.error_log);
+            cout << "Parse failed on " << filename << endl;
         } else {
             insert_patent.bind(1, p.id);
             insert_patent.bind(2, p.abstract);
