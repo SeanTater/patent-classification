@@ -45,3 +45,5 @@ else:unix: PRE_TARGETDEPS += $$PWD/libpugixml.a
 
 
 unix|win32: LIBS += -lboost_regex
+
+unix|win32: LIBS += -lboost_program_options

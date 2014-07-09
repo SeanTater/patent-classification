@@ -70,9 +70,9 @@ string PatentParse::snippet(pugi::xml_node node, unsigned int target_length) {
 
 string PatentParse::extract_english(string target_tag_name, unsigned int length) {
     pugi::xml_node target = root.find_node([&](pugi::xml_node& node){
-            auto lang = node.attribute("lang");
-            return node.name() == target_tag_name and not lang.empty() and string(lang.value()) == "EN";
-});
+        auto lang = node.attribute("lang");
+        return node.name() == target_tag_name and not lang.empty() and string(lang.value()) == "EN";
+    });
     return snippet(target, length);
 }
 
@@ -92,10 +92,9 @@ string PatentParse::split_sentences(string content) {
             // To check: binary_search(source_phrases.begin(), source_phrases.end(), boost::to_lower_copy(phrase.str())) << endl;
             cout << "replaced " << phrase.str() << endl;
             return boost::replace_all_copy(phrase.str(), " ", "\xc2\xa0");
-});
-
+    });
     boost::regex sentence_breaks(R"lit(([\.!\?]( |^)))lit");
-    return boost::regex_replace(content, sentence_breaks, "\1\x1f");
+    return boost::regex_replace(content, sentence_breaks, "\\1\x1f");
 }
 
 void PatentParse::load_phrase_list(string filename) {
