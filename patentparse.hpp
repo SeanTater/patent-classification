@@ -16,6 +16,90 @@
 using namespace std;
 using namespace sqlite3x; // because it uses prefixes
 
+class TrieNode {
+public:
+    // Strings could be more efficient
+    string value;
+    bool leaf;
+    vector<TrieNode> children;
+
+    TrieNode(string in) {
+        this->value = in;
+        this->leaf = false;
+    }
+
+    /**
+     * @brief Insert a string into the Trie
+     * @param text
+     * @param i
+     * @return Whether a string was added
+     */
+    void insert(const string& text, uint i) {
+        // 0 <= i < text.length()
+        if (i == text.length()) {
+            leaf = true;
+        } else if (i < text.length()) {
+            // A DFS, in spite of looks (the char test is a linear search
+            //  but it won't recurse in that case.)
+            for (auto& candidate : children) {
+                if (tolower(candidate.value.at(0)) == tolower(text.at(i))) {
+                    candidate.insert(text, i+1);
+                    return;
+                }
+            }
+            // No children with that text (but this is not a leaf)
+            children.emplace_back(text.substr(i, 1));
+            children.back().insert(text, i+1);
+        }
+    }
+
+    /**
+     * @brief Find the longest prefix
+     * @param text
+     * @param i
+     * @return A leaf, or an empty string. (no substrings)
+     */
+    string find(const string& text, uint i) const {
+        if (i < text.length()) {
+            for (auto& candidate : children) {
+                if (tolower(text.at(i)) == tolower(candidate.value.at(0))) {
+                    string result = candidate.find(text, i+1);
+                    if (not result.empty())
+                        return value + result;
+                }
+            }
+        }
+        if (leaf) {
+            cout << "got it" << endl;
+            return value;
+        }
+        return "";
+    }
+};
+
+class Trie {
+private:
+    TrieNode root {""};
+public:
+    /**
+     * @brief Find the longest prefix leaf or ""
+     * @param text
+     * @return
+     */
+    string find(const string& text) {
+        return root.find(text, 0);
+    }
+
+    /**
+     * @brief Insert a new leaf
+     * @param text
+     */
+    void insert(string text) {
+        root.insert(text, 0);
+    }
+};
+
+
 /**
  * @brief XML Patent Document Parser
  *
@@ -29,6 +113,7 @@ private:
     pugi::xml_node root;
     static vector<string> source_phrases;
     static vector<string> cleaned_phrases;
+    static Trie phrase_trie;
     static boost::regex source_re;
 
     /**

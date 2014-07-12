@@ -3,83 +3,7 @@
 vector<string> PatentParse::source_phrases;
 vector<string> PatentParse::cleaned_phrases;
 boost::regex PatentParse::source_re;
-
-class TrieNode;
-class Trie {
-private:
-    TrieNode root {' '};
-public:
-    /**
-     * @brief Find the longest prefix leaf or ""
-     * @param text
-     * @return
-     */
-    string find(const string& text) {
-        return root.find(text, 0);
-    }
-
-    /**
-     * @brief Insert a new leaf
-     * @param text
-     */
-    void insert(const string& text) {
-        root.insert(text, 0);
-    }
-};
-class TrieNode {
-    // Strings could be more efficient
-    char value;
-    bool leaf = false;
-    vector<TrieNode> children;
-
-    TrieNode(char value) {
-        this->value = value;
-    }
-
-    /**
-     * @brief Insert a string into the Trie
-     * @param text
-     * @param i
-     * @return Whether a string was added
-     */
-    bool insert(const string& text, size_type i) {
-        // 0 <= i < text.length()
-        if (text.at(i) == value) {
-            if (i == text.length() - 1)
-                leaf = true;
-            else if (i < text.length()) {
-                // A DFS, in spite of looks (the char test is a linear search
-                //  but it won't recurse in that case.)
-                for (auto& candidate : children) {
-                    if (candidate.insert(text, i+1))
-                        return;
-                }
-                // No children with that text (but this is not a leaf)
-                children.emplace_back(text.at(i+1));
-                children.back().insert(text, i+1);
-            }
-        }
-    }
-
-    /**
-     * @brief Find the longest prefix
-     * @param text
-     * @param i
-     * @return A leaf, or an empty string. (no substrings)
-     */
-    string find(const string& text, size_type i) const {
-        if (not text.empty() and text[i] == value) {
-            for (auto& candidate : children) {
-                string result = candidate.find(text, i+1);
-                if (result)
-                    return value + result;
-            }
-            if (leaf)
-                return value;
-        }
-        return "";
-    }
-};
+Trie PatentParse::phrase_trie;
 
 // public:
 
@@ -175,39 +99,29 @@ string PatentParse::extract_tags() {
 }*/
 
 string PatentParse::split_sentences(string content) {
-    // [start index, phrase index]
-    vector<pair<int, int> > replacements;
+    // [start index, phrase]
+    vector<pair<int, string> > replacements;
 
     for (auto c_it=content.begin(); c_it != content.end(); c_it++) {
         int c_i = c_it - content.begin();
-        if (*c_it != ' ' and (c_it == content.begin() or *(c_it-1) == ' ')) {
-            // substr() -> unnecessary copy
-            string suffix = boost::to_lower_copy(content.substr(c_i, 30));
-            auto phrase_it = lower_bound(source_phrases.begin(), source_phrases.end(), suffix);
-            if (phrase_it != source_phrases.end()) {
-                if (phrase_it != source_phrases.begin())
-                    cout << "maybe1 " << (*(phrase_it-1)) << " == " << suffix << endl;
-                cout << "maybe2 " << (*(phrase_it+0)) << " == " << suffix << endl;
-                cout << "maybe3 " << (*(phrase_it+1)) << " == " << suffix << endl;
-
-                if (boost::istarts_with(suffix, (*phrase_it))) {
-                    replacements.emplace_back(c_i, (*phrase_it).length());
-                }
-            }
+        // substr() -> unnecessary copy
+        string suffix = boost::to_lower_copy(content.substr(c_i, 30));
+        string phrase = phrase_trie.find(suffix);
+        //cout << phrase_trie.find("E. colifus") << endl;
+        //exit(EXIT_SUCCESS);
+        //cout << "looking for " << suffix << " got " << phrase_trie.find(suffix) << endl;
+        if (not phrase.empty()) {
+            cout << "matched " << suffix << " with " << phrase << endl;
+            replacements.emplace_back(c_i, phrase);
         }
     }
     reverse(replacements.begin(), replacements.end());
-    for (pair<int, int> replacement : replacements) {
-        string& phrase = source_phrases.at(replacement.second);
+    for (pair<int, string> replacement : replacements) {
+        string& phrase = replacement.second;
         cout << "replacing " << phrase << endl;
         content.replace(replacement.first, phrase.length(),
                         boost::replace_all_copy(phrase, " ", "\xc2\xa0"));
     }
-    /*content = boost::regex_replace(content, source_re, [](boost::smatch phrase){
-            // To check: binary_search(source_phrases.begin(), source_phrases.end(), boost::to_lower_copy(phrase.str())) << endl;
-            cout << "replaced " << phrase.str() << endl;
-            return boost::replace_all_copy(phrase.str(), " ", "\xc2\xa0");
-    });*/
     boost::regex sentence_breaks(R"lit(([\.!\?]( |^)))lit");
     return boost::regex_replace(content, sentence_breaks, "\\1\x1f");
 }
@@ -220,6 +134,7 @@ void PatentParse::load_phrase_list(string filename) {
     while (not phrase.empty()) {
         boost::to_lower(phrase);
         PatentParse::source_phrases.push_back(phrase);
+        PatentParse::phrase_trie.insert(phrase);
         PatentParse::cleaned_phrases.push_back(sanitize_for_regex(phrase));
         getline(source, phrase);
     }
