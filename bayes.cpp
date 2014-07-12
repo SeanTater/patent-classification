@@ -1,4 +1,4 @@
-#include "bayes.h"
+#include "bayes.hpp"
 #include <iostream>
 
 using namespace std;

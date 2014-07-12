@@ -7,7 +7,7 @@
 #include <vector>
 #include <boost/program_options.hpp>
 
-#include <patentparse.h>
+#include <patentparse.hpp>
 
 using namespace std;
 using namespace sqlite3x; // because it uses prefixes
