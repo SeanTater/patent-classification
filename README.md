@@ -19,6 +19,14 @@ It was developed on Linux with Clang 3.4, but should work with any compiler
 that supports C++11.
 
 
+Interpreting Results
+--------------------
+
+- Sentences are separated by ASCII unit separators (\x1f, dec 31)
+- Claim text segments are further separated by ASCII record separators (\x1e, dec 30)
+- Claims are separated by ASCII group separators (\x1d, dec 29)
+
+
 Changelog
 ---------
 12 July 2014
