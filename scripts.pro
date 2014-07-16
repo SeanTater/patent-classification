@@ -10,7 +10,7 @@ QMAKE_CXXFLAGS += -std=c++11
 
 # Input
 HEADERS += includes/pugiconfig.hpp includes/pugixml.hpp \
-    includes/sqlite3x.hpp \
+    includes/sqlite3x-master/sqlite3x.hpp \
     includes/sqlite3x-master/sqlite3x.hpp \
     patentparse.hpp \
     bayes.hpp \
@@ -29,7 +29,6 @@ SOURCES += parse.cpp \
 
 
 unix|win32: LIBS += -lsqlite3
-unix|win32: LIBS += -lsqlite3x
 
 #Pugixml
 
