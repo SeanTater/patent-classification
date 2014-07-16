@@ -1,149 +1,106 @@
 #include "patentparse.hpp"
 
-vector<string> PatentParse::source_phrases;
-vector<string> PatentParse::cleaned_phrases;
-boost::regex PatentParse::source_re;
-Trie PatentParse::phrase_trie;
+// Just useful for debugging:
+//  cout << "name is " << root.name() << " and is " << (root.empty() ? "empty" : "not empty") << endl;
 
 // public:
 
-PatentParse::PatentParse(string filename) {
-    // TODO: Specify these filenames somewhere
-    if (source_phrases.empty()) {
-        load_phrase_list("source.list");
-        /* This oversized RE is a major performance loss
-             * A binary search would be faster, and a trie faster still
-             * But writing this is easier and I think the breakeven point
-             * is maybe 10M patents */
-        source_re = boost::regex("(?<= )(" + boost::join(cleaned_phrases, "|") + ")",
-                                 boost::regex::icase);
-    }
+PatentParse::PatentParse(shared_ptr<pugi::xml_document> doc, pugi::xml_node root, PatentDialect dialect) {
+    this->doc = doc;
+    this->root = root;
+    this->dialect = dialect;
 
-    pugi::xml_parse_result result = doc.load_file(filename.c_str());
+    if (dialect == PatentDialect::CLEF)
+        setId(root.attribute("ucid").value());
+    else if (dialect == PatentDialect::GOOGLE)
+        setId(root.attribute("file").value());
+
+    setTitle(extractEnglish("invention-title", -1));
+    setAbstract(extractEnglish("abstract", -1));
+    setDescription(extractEnglish("description"));
+    extractTags();
+    setClaims(extractClaims());
+
+    validate();
+}
+
+vector<PatentParse> PatentParse::parseXml(string filename) {
+    // Read an XML, split it into different patents
+    // Make sure the doc outlives the patents
+    auto doc = make_shared<pugi::xml_document>();
+    pugi::xml_parse_result result = doc->load_file(filename.c_str());
     //cout << "Load result: " << result.description() << endl;
 
-    root = doc.child("patent-document");
-
-    id = root.attribute("ucid").value();
-    title = split_sentences(extract_english("invention-title", -1));
-    abstract = split_sentences(extract_english("abstract", -1));
-    description = split_sentences(extract_english("description"));
-    tags = extract_tags();
-
-    if (abstract.empty())
-        error_log += "Missing abstract\n";
-    if (id.empty())
-        error_log += "Missing ID\n";
-    if (tags.empty())
-        error_log += "Could not find any IPCR tags.\n";
+    // Start parsing: note Google and CLEF have different root tags
+    vector<PatentParse> res;
+    for (pugi::xml_node root : doc->children()) {
+        if (string("patent-document") == root.name()) {
+            res.emplace_back(doc, root, PatentDialect::CLEF);
+        } else if (string("us-patent-grant") == root.name()) {
+            res.emplace_back(doc, root, PatentDialect::GOOGLE);
+        } else {
+            //cerr << "Warning: encountered unknown patent type " << root.name() << endl;
+        }
+    }
+    return res;
 }
-
-bool PatentParse::empty() {
-    return not error_log.empty();
-}
-
 
 // private:
 
-string PatentParse::sanitize(string content) {
-    boost::regex inline_references(R"lit((\([ ]*[0-9][0-9a-z,.; ]*\)))lit");
-    content = boost::regex_replace(content, inline_references, "");
-
-    boost::regex alpha_inline_references(R"lit((\([ ]*[A-Za-z]\)))lit");
-    return boost::regex_replace(content, alpha_inline_references, "");
-}
-
-string PatentParse::snippet(pugi::xml_node node, unsigned int target_length) {
+string PatentParse::snippet(pugi::xml_node node, unsigned int target_length, const string separator) {
     string content = sanitize(node.value());
     if (not content.empty()) {
         // Add a space if it's not empty to keep lines apart
-        content += "\n";
+        content += separator;
     }
     if (content.length() >= target_length)
         return content;
     else
         for (pugi::xml_node child : node) {
-            content += snippet(child, target_length - content.length());
+            content += snippet(child, target_length - content.length(), separator);
             if (content.length() >= target_length) break;
         }
     return content;
 }
 
-string PatentParse::extract_english(string target_tag_name, unsigned int length) {
-    pugi::xml_node target = root.find_node([&](pugi::xml_node& node){
+string PatentParse::extractEnglish(string target_tag_name, unsigned int length) {
+    pugi::xml_node target = root.find_node([&](pugi::xml_node node){
         auto lang = node.attribute("lang");
-        return node.name() == target_tag_name and not lang.empty() and string(lang.value()) == "EN";
+        return node.name() == target_tag_name and (lang.empty() or string("EN") == lang.value());
     });
     return snippet(target, length);
 }
 
-string PatentParse::extract_tags() {
-    string out = "";
-    auto tags_parent = root.first_element_by_path("bibliographic-data/technical-data/classifications-ipcr");
-    for (auto tag_node : tags_parent.children()) {
-        string tag = string(tag_node.child_value()).substr(0, 3);
-        if (out.find(tag) == string::npos)
-            out += tag + " ";
-    }
-    return out;
-}
+void PatentParse::extractTags() {
+    // CLEF and Google have different XML tag names ans split the parts of the IPCR
+    if (dialect == PatentDialect::CLEF) {
+        auto tags_parent = root.first_element_by_path("bibliographic-data/technical-data/classifications-ipcr");
+        for (auto tag_node : tags_parent.children()) {
+            string tag = string(tag_node.child_value()).substr(0, 3);
+            appendTag(tag);
+        }
+    } else if (dialect == PatentDialect::GOOGLE) {
+        auto tags_parent = root.first_element_by_path("us-bibliographic-data-grant/classifications-ipcr");
 
-/*string PatentParse::split_sentences(string content) {
-    content = boost::regex_replace(content, source_re, [](boost::smatch phrase){
-            // To check: binary_search(source_phrases.begin(), source_phrases.end(), boost::to_lower_copy(phrase.str())) << endl;
-            cout << "replaced " << phrase.str() << endl;
-            return boost::replace_all_copy(phrase.str(), " ", "\xc2\xa0");
-    });
-    boost::regex sentence_breaks(R"lit(([\.!\?]( |^)))lit");
-    return boost::regex_replace(content, sentence_breaks, "\\1\x1f");
-}*/
-
-string PatentParse::split_sentences(string content) {
-    // [start index, phrase]
-    vector<pair<int, string> > replacements;
-
-    for (auto c_it=content.begin(); c_it != content.end(); c_it++) {
-        int c_i = c_it - content.begin();
-        // substr() -> unnecessary copy
-        string suffix = boost::to_lower_copy(content.substr(c_i, 30));
-        string phrase = phrase_trie.find(suffix);
-        //cout << phrase_trie.find("E. colifus") << endl;
-        //exit(EXIT_SUCCESS);
-        //cout << "looking for " << suffix << " got " << phrase_trie.find(suffix) << endl;
-        if (not phrase.empty()) {
-            cout << "matched " << suffix << " with " << phrase << endl;
-            replacements.emplace_back(c_i, phrase);
+        for (auto tag_node : tags_parent.children()) {
+            string tag = tag_node.child("section").child_value();
+            tag += tag_node.child("class").child_value();
+            appendTag(tag);
         }
     }
-    reverse(replacements.begin(), replacements.end());
-    for (pair<int, string> replacement : replacements) {
-        string& phrase = replacement.second;
-        cout << "replacing " << phrase << endl;
-        content.replace(replacement.first, phrase.length(),
-                        boost::replace_all_copy(phrase, " ", "\xc2\xa0"));
-    }
-    boost::regex sentence_breaks(R"lit(([\.!\?]( |^)))lit");
-    return boost::regex_replace(content, sentence_breaks, "\\1\x1f");
 }
 
-
-void PatentParse::load_phrase_list(string filename) {
-    ifstream source(filename);
-    string phrase;
-    getline(source, phrase);
-    while (not phrase.empty()) {
-        boost::to_lower(phrase);
-        PatentParse::source_phrases.push_back(phrase);
-        PatentParse::phrase_trie.insert(phrase);
-        PatentParse::cleaned_phrases.push_back(sanitize_for_regex(phrase));
-        getline(source, phrase);
+string PatentParse::extractClaims() {
+    auto claims_parent = root.first_element_by_path("claims");
+    string claims = "";
+    for (auto claim_node : claims_parent.children("claim")) {
+        string claim_part = "";
+        for (auto claim_text_node : claim_node.children("claim-text")) {
+            claim_part += claim_text_node.child_value() + string("\x1e");
+        }
+        if (not claim_part.empty()) {
+            claims += claim_part + "\x1d";
+        }
     }
-    sort(source_phrases.begin(), source_phrases.end());
-    sort(cleaned_phrases.begin(), cleaned_phrases.end());
-}
-
-string PatentParse::sanitize_for_regex(string content) {
-    const boost::regex esc("[\\^\\.\\$\\|\\(\\)\[\\]\\*\\+\\?\\/\\\\]");
-    const string rep("\\\\\\1&");
-    return boost::regex_replace(content, esc, rep, boost::match_default | boost::format_sed);
+    return claims;
 }
