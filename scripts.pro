@@ -12,10 +12,10 @@ QMAKE_CXXFLAGS += -std=c++11
 HEADERS += includes/pugiconfig.hpp includes/pugixml.hpp \
     includes/sqlite3x.hpp \
     includes/sqlite3x-master/sqlite3x.hpp \
-    patentparse.hpp \
     bayes.hpp \
     patent.hpp \
-    trie.hpp
+    trie.hpp \
+    xmlpatentparser.hpp
 SOURCES += parse.cpp \
     includes/sqlite3x-master/sqlite3x_command.cpp \
     includes/sqlite3x-master/sqlite3x_connection.cpp \
@@ -23,9 +23,9 @@ SOURCES += parse.cpp \
     includes/sqlite3x-master/sqlite3x_reader.cpp \
     includes/sqlite3x-master/sqlite3x_transaction.cpp \
     bayes.cpp \
-    patentparse.cpp \
     patent.cpp \
-    trie.cpp
+    trie.cpp \
+    xmlpatentparser.cpp
 
 
 unix|win32: LIBS += -lsqlite3

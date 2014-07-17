@@ -60,7 +60,7 @@ void Patent::validate() {
         appendErrorLog("Missing abstract");
     if (id.empty())
         appendErrorLog("Missing ID");
-    if (tags.empty())
+    if (ipc.empty())
         appendErrorLog("Could not find any IPCR tags.");
 }
 bool Patent::success() {
@@ -88,14 +88,14 @@ void Patent::setId(const string &value)
 }
 
 
-string Patent::getTags() const
+string Patent::getIPC() const
 {
-    return tags;
+    return ipc;
 }
-void Patent::appendTag(const string &value)
+void Patent::appendIPC(const string &value)
 {
-    if (tags.find(value) == string::npos)
-        tags += value + " ";
+    if (ipc.find(value) == string::npos)
+        ipc += value + " ";
 }
 
 

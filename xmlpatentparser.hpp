@@ -27,7 +27,7 @@ enum PatentDialect {GOOGLE, CLEF};
  * Just read from the (non-null) string fields
  *  id, description, abstract, and tags
  */
-class PatentParse : public Patent {
+class XMLPatentParser : public Patent {
 private:
     /* This exists to keep the document around until all the document's
      * PatentParse's are deleted.
@@ -56,7 +56,7 @@ private:
     /**
      * Collect all of the IPCR tags
      */
-    void extractTags();
+    void extractIPC();
 
     /**
      * @brief Extract patent claims, with delimiters
@@ -69,14 +69,14 @@ public:
     /**
      * Parse a document from file
      */
-    PatentParse(shared_ptr<pugi::xml_document> doc, pugi::xml_node root, PatentDialect dialect);
+    XMLPatentParser(shared_ptr<pugi::xml_document> doc, pugi::xml_node root, PatentDialect dialect);
 
     /**
      * @brief Parse (possibly multiple) documents from an XML file
      * @param filename
      * @return a list of patent parses
      */
-    static vector<PatentParse> parseXml(string filename);
+    static vector<XMLPatentParser> parseXml(string filename);
 };
 
 #endif // PATENTPARSE_H

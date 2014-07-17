@@ -7,7 +7,7 @@
 #include <vector>
 #include <boost/program_options.hpp>
 
-#include <patentparse.hpp>
+#include <xmlpatentparser.hpp>
 
 using namespace std;
 using namespace sqlite3x; // because it uses prefixes
@@ -29,12 +29,12 @@ int main(int argc, const char * argv[]) {
     po::options_description actual;
     actual.add(visible).add_options()
             ("command", po::value< string >(), "Run mode")
-            ("input-xml", po::value< vector<string> >(), "Input XML files, from CLEF IP");
+            ("input-filename", po::value< vector<string> >(), "Input XML files, from CLEF or USPTO");
 
 
     po::positional_options_description p;
     p.add("command", 1);
-    p.add("input-xml", -1);
+    p.add("input-filename", -1);
 
 
     po::variables_map varmap;
@@ -56,7 +56,7 @@ int main(int argc, const char * argv[]) {
         return 1;
     }
 
-    if (not (varmap.count("input-xml"))) {
+    if (not (varmap.count("input-filename"))) {
         cerr << "Missing input files." << endl
              << "Usage: patent store <document> [document ..]" << endl
              << visible << endl;
@@ -68,14 +68,14 @@ int main(int argc, const char * argv[]) {
     sqlite3_connection conn(varmap["database"].as<string>().c_str());
     conn.setbusytimeout(60000);
     conn.executenonquery("PRAGMA synchronous=0;");
-    sqlite3_command insert_patent(conn, "INSERT OR REPLACE INTO patents (id, abstract, description, tags, title, claims) VALUES (?, ?, ?, ?, ?, ?);");
+    sqlite3_command insert_patent(conn, "INSERT OR REPLACE INTO patents (id, abstract, description, ipc, title, claims) VALUES (?, ?, ?, ?, ?, ?);");
     sqlite3_command insert_log(conn, "INSERT INTO log (id, filename, success, message) VALUES (?, ?, ?, ?);");
     
 
     // Load each patent file
-    for (string filename : varmap["input-xml"].as< vector<string> >()) {
+    for (string filename : varmap["input-filename"].as< vector<string> >()) {
         // Load each included patent
-        for (PatentParse& p : PatentParse::parseXml(filename)) {
+        for (XMLPatentParser& p : XMLPatentParser::parseXml(filename)) {
             insert_log.bind(1, p.getId());
             insert_log.bind(2, filename);
 
@@ -83,7 +83,7 @@ int main(int argc, const char * argv[]) {
                 insert_patent.bind(1, p.getId());
                 insert_patent.bind(2, p.getAbstract());
                 insert_patent.bind(3, p.getDescription());
-                insert_patent.bind(4, p.getTags());
+                insert_patent.bind(4, p.getIPC());
                 insert_patent.bind(5, p.getTitle());
                 insert_patent.bind(6, p.getClaims());
                 insert_patent.executenonquery();

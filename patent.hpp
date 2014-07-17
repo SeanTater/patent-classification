@@ -16,7 +16,7 @@ private:
     string abstract;
     string description;
     string id;
-    string tags;
+    string ipc;
     string claims;
     string error_log;
 
@@ -45,8 +45,8 @@ public:
     string getId() const;
     void setId(const string &value);
 
-    string getTags() const;
-    void appendTag(const string &value);
+    string getIPC() const;
+    void appendIPC(const string &value);
 
     string getClaims() const;
     void setClaims(const string &value);
