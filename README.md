@@ -12,6 +12,7 @@ You will need:
 -  boost, at least:
   -  regex
   -  algorithm
+- libsqlite3-dev
 
 sqlite3x is included so you don't need it.
 
