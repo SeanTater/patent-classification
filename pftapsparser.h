@@ -10,22 +10,20 @@ using namespace std;
 
 class PFTAPSTag {
     friend class PFTAPSParser;
-private:
+
+public:
     string name;
     string value;
     vector<PFTAPSTag> children;
 
-public:
-    PFTAPSTag(const string &name, const vector<PFTAPSTag>& children={} ) {
+    PFTAPSTag(string name, string value="") {
         this->name = name;
         this->value = value;
-        this->children = children;
     }
 
-    PFTAPSTag put(const string& name, const string& value) {
-        PFTAPSTag t = PFTAPSTag(name);
-        t.value = value;
-        return t;
+    PFTAPSTag& put(const string& name, const string& value) {
+        children.emplace_back(name, value);
+        return children.back();
     }
 
     PFTAPSTag child(const string & name) {
@@ -43,6 +41,11 @@ public:
 
 class PFTAPSParser : public Patent
 {
+private:
+    static unsigned int parseLines(PFTAPSTag& parent,
+                        vector<string>& lines,
+                        unsigned int line_i,
+                        unordered_set<string>& rules);
 public:
     PFTAPSParser();
     static vector<Patent> parseText(string filename);

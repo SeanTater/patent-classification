@@ -83,7 +83,7 @@ int main(int argc, const char * argv[]) {
     // Load each patent file
     for (string filename : varmap["input-filename"].as< vector<string> >()) {
         // Load each included patent
-        for (Patent& p : XMLPatentParser::parseXML(filename)) {
+        for (Patent& p : readOneFile(filename)) {
             insert_log.bind(1, p.getId());
             insert_log.bind(2, filename);
 
