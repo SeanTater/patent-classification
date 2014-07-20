@@ -12,27 +12,42 @@ using namespace std;
  */
 class Patent {
 private:
+    // Metadata
+    string id;
+    string error_log;
+
+    // Bibliographic data
     string title;
     string abstract;
     string description;
-    string id;
-    string ipc;
     string claims;
-    string error_log;
 
+    // Used to store phrases to remove
     static Trie phrase_trie;
 
-protected:
-    /**
-     * @brief Call this when finished to validate results
-     */
-    void validate();
-
 public:
+
+    // Classifications
+    // These are easier to handle public.
+    // Use appendClass with them.
+    string ipc;
+    string uspc;
+    string cpc;
+    string ecla;
+
     Patent();
     // These accessors and mutators actually process the text
     // So they are not merely OO nannies
 
+    // Metadata
+    string getId() const;
+    void setId(const string &value);
+
+    string getErrorLog() const;
+    void appendErrorLog(const string &value);
+
+
+    // Bibliographic data
     string getTitle() const;
     void setTitle(const string &value);
 
@@ -42,17 +57,11 @@ public:
     string getDescription() const;
     void setDescription(const string &value);
 
-    string getId() const;
-    void setId(const string &value);
-
-    string getIPC() const;
-    void appendIPC(const string &value);
-
     string getClaims() const;
     void setClaims(const string &value);
 
-    string getErrorLog() const;
-    void appendErrorLog(const string &value);
+    // Classifications
+    void appendClass(string& existing, const string &value);
 
     /**
      * @return Whether the results were valid to add to the DB
@@ -76,7 +85,7 @@ public:
      * @param content
      * @return a cleaned copy
      */
-    string sanitize(string content);
+    static string sanitize(string content);
 
 
     /**
@@ -85,6 +94,11 @@ public:
      * @return the new phrases
      */
     void loadPhraseList(string filename);
+
+    /**
+     * @brief Call this when finished to validate results
+     */
+    void validate();
 };
 
 #endif // PATENT_H

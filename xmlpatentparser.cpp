@@ -1,9 +1,11 @@
-#include "patentparse.hpp"
+#include "xmlpatentparser.hpp"
 
 // Just useful for debugging:
 //  cout << "name is " << root.name() << " and is " << (root.empty() ? "empty" : "not empty") << endl;
 
-// public:
+/*
+ * Metadata
+ */
 
 XMLPatentParser::XMLPatentParser(shared_ptr<pugi::xml_document> doc, pugi::xml_node root, PatentDialect dialect) {
     this->doc = doc;
@@ -11,33 +13,34 @@ XMLPatentParser::XMLPatentParser(shared_ptr<pugi::xml_document> doc, pugi::xml_n
     this->dialect = dialect;
 
     if (dialect == PatentDialect::CLEF)
-        setId(root.attribute("ucid").value());
+        pat.setId(root.attribute("ucid").value());
     else if (dialect == PatentDialect::GOOGLE)
-        setId(root.attribute("file").value());
+        pat.setId(root.attribute("file").value());
 
-    setTitle(extractEnglish("invention-title", -1));
-    setAbstract(extractEnglish("abstract", -1));
-    setDescription(extractEnglish("description"));
+    pat.setTitle(extractEnglish("invention-title", -1));
+    pat.setAbstract(extractEnglish("abstract", -1));
+    pat.setDescription(extractEnglish("description"));
     extractIPC();
-    setClaims(extractClaims());
+    extractUSPC();
+    extractECLA();
+    pat.setClaims(extractClaims());
 
-    validate();
+    pat.validate();
 }
 
-vector<XMLPatentParser> XMLPatentParser::parseXml(string filename) {
+vector<Patent> XMLPatentParser::parseXML(string filename) {
     // Read an XML, split it into different patents
     // Make sure the doc outlives the patents
     auto doc = make_shared<pugi::xml_document>();
-    pugi::xml_parse_result result = doc->load_file(filename.c_str());
-    //cout << "Load result: " << result.description() << endl;
+    doc->load_file(filename.c_str());
 
     // Start parsing: note Google and CLEF have different root tags
-    vector<XMLPatentParser> res;
+    vector<Patent> res;
     for (pugi::xml_node root : doc->children()) {
         if (string("patent-document") == root.name()) {
-            res.emplace_back(doc, root, PatentDialect::CLEF);
+            res.emplace_back(XMLPatentParser(doc, root, PatentDialect::CLEF).getPatent());
         } else if (string("us-patent-grant") == root.name()) {
-            res.emplace_back(doc, root, PatentDialect::GOOGLE);
+            res.emplace_back(XMLPatentParser(doc, root, PatentDialect::GOOGLE).getPatent());
         } else {
             //cerr << "Warning: encountered unknown patent type " << root.name() << endl;
         }
@@ -45,10 +48,12 @@ vector<XMLPatentParser> XMLPatentParser::parseXml(string filename) {
     return res;
 }
 
-// private:
+/*
+ * Bibliographic data
+ */
 
 string XMLPatentParser::snippet(pugi::xml_node node, unsigned int target_length, const string separator) {
-    string content = sanitize(node.value());
+    string content = Patent::sanitize(node.value());
     if (not content.empty()) {
         // Add a space if it's not empty to keep lines apart
         content += separator;
@@ -71,24 +76,6 @@ string XMLPatentParser::extractEnglish(string target_tag_name, unsigned int leng
     return snippet(target, length);
 }
 
-void XMLPatentParser::extractIPC() {
-    // CLEF and Google have different XML tag names ans split the parts of the IPCR
-    if (dialect == PatentDialect::CLEF) {
-        auto tags_parent = root.first_element_by_path("bibliographic-data/technical-data/classifications-ipcr");
-        for (auto tag_node : tags_parent.children()) {
-            string tag = string(tag_node.child_value()).substr(0, 3);
-            appendIPC(tag);
-        }
-    } else if (dialect == PatentDialect::GOOGLE) {
-        auto tags_parent = root.first_element_by_path("us-bibliographic-data-grant/classifications-ipcr");
-
-        for (auto tag_node : tags_parent.children()) {
-            string tag = tag_node.child("section").child_value();
-            tag += tag_node.child("class").child_value();
-            appendIPC(tag);
-        }
-    }
-}
 
 string XMLPatentParser::extractClaims() {
     auto claims_parent = root.first_element_by_path("claims");
@@ -103,4 +90,56 @@ string XMLPatentParser::extractClaims() {
         }
     }
     return claims;
+}
+
+
+/*
+ * Classifications
+ */
+
+void XMLPatentParser::extractIPC() {
+    // CLEF and Google have different XML tag names ans split the parts of the IPCR
+    if (dialect == PatentDialect::CLEF) {
+        auto tags_parent = root.first_element_by_path("bibliographic-data/technical-data/classifications-ipcr");
+        for (auto tag_node : tags_parent.children()) {
+            string tag = string(tag_node.child_value()).substr(0, 3);
+            pat.appendClass(pat.ipc, tag);
+        }
+    } else if (dialect == PatentDialect::GOOGLE) {
+        auto tags_parent = root.first_element_by_path("us-bibliographic-data-grant/classifications-ipcr");
+
+        for (auto tag_node : tags_parent.children()) {
+            string tag = tag_node.child("section").child_value();
+            tag += tag_node.child("class").child_value();
+            pat.appendClass(pat.ipc, tag);
+        }
+    }
+}
+
+void XMLPatentParser::extractUSPC()
+{
+    // CLEF doesn't have it.
+    if (dialect == PatentDialect::GOOGLE) {
+        auto tags_parent = root.first_element_by_path("us-bibliographic-data-grant/classifications-national");
+
+        for (auto tag_node : tags_parent.children()) {
+            if (tag_node.child("country").child_value() == string("US")) {
+                pat.appendClass(pat.uspc, tag_node.child("main-classification").child_value());
+            }
+        }
+    }
+}
+
+void XMLPatentParser::extractECLA()
+{
+    if (dialect == PatentDialect::CLEF) {
+        auto tags_parent = root.first_element_by_path("bibliographic-data/technical-data/classification-ecla");
+        for (auto tag_node : tags_parent.children("classification-symbol")) {
+            pat.appendClass(pat.ecla, string(tag_node.child_value()).substr(0, 3));
+        }
+    }
+}
+
+const Patent XMLPatentParser::getPatent() const {
+    return pat;
 }

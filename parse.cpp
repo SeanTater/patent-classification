@@ -8,11 +8,19 @@
 #include <boost/program_options.hpp>
 
 #include <xmlpatentparser.hpp>
+#include <pftapsparser.h>
 
 using namespace std;
 using namespace sqlite3x; // because it uses prefixes
 namespace po = boost::program_options;
 
+vector<Patent> readOneFile(string filename) {
+    vector<Patent> patents = XMLPatentParser::parseXML(filename);
+    if (patents.empty()) {
+        return PFTAPSParser::parseText(filename);
+    }
+    return patents;
+}
 
 /**
  * Parse each of the XML files and insert them into the database
@@ -68,14 +76,14 @@ int main(int argc, const char * argv[]) {
     sqlite3_connection conn(varmap["database"].as<string>().c_str());
     conn.setbusytimeout(60000);
     conn.executenonquery("PRAGMA synchronous=0;");
-    sqlite3_command insert_patent(conn, "INSERT OR REPLACE INTO patents (id, abstract, description, ipc, title, claims) VALUES (?, ?, ?, ?, ?, ?);");
+    sqlite3_command insert_patent(conn, "INSERT OR REPLACE INTO patents (id, abstract, description, title, claims, uspc, ipc, cpc, ecla) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);");
     sqlite3_command insert_log(conn, "INSERT INTO log (id, filename, success, message) VALUES (?, ?, ?, ?);");
     
 
     // Load each patent file
     for (string filename : varmap["input-filename"].as< vector<string> >()) {
         // Load each included patent
-        for (XMLPatentParser& p : XMLPatentParser::parseXml(filename)) {
+        for (Patent& p : XMLPatentParser::parseXML(filename)) {
             insert_log.bind(1, p.getId());
             insert_log.bind(2, filename);
 
@@ -83,9 +91,14 @@ int main(int argc, const char * argv[]) {
                 insert_patent.bind(1, p.getId());
                 insert_patent.bind(2, p.getAbstract());
                 insert_patent.bind(3, p.getDescription());
-                insert_patent.bind(4, p.getIPC());
-                insert_patent.bind(5, p.getTitle());
-                insert_patent.bind(6, p.getClaims());
+                insert_patent.bind(4, p.getTitle());
+                insert_patent.bind(5, p.getClaims());
+
+                insert_patent.bind(6, p.uspc);
+                insert_patent.bind(7, p.ipc);
+                insert_patent.bind(8, p.cpc);
+                insert_patent.bind(9, p.ecla);
+
                 insert_patent.executenonquery();
                 insert_log.bind(3, 1);
                 insert_log.bind(4, "");

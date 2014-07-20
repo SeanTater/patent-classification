@@ -53,8 +53,6 @@ void Patent::loadPhraseList(string filename) {
     }
 }
 
-
-
 void Patent::validate() {
     if (abstract.empty())
         appendErrorLog("Missing abstract");
@@ -85,17 +83,6 @@ string Patent::getId() const
 void Patent::setId(const string &value)
 {
     id = value;
-}
-
-
-string Patent::getIPC() const
-{
-    return ipc;
-}
-void Patent::appendIPC(const string &value)
-{
-    if (ipc.find(value) == string::npos)
-        ipc += value + " ";
 }
 
 
@@ -137,3 +124,11 @@ void Patent::setAbstract(const string &value)
     abstract = splitSentences(sanitize(value));
 }
 
+/*
+ * Classifications
+ */
+
+void Patent::appendClass(string &existing, const string& value) {
+    if (existing.find(value) == string::npos)
+        existing += value + " ";
+}

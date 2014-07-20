@@ -15,7 +15,8 @@ HEADERS += includes/pugiconfig.hpp includes/pugixml.hpp \
     bayes.hpp \
     patent.hpp \
     trie.hpp \
-    xmlpatentparser.hpp
+    xmlpatentparser.hpp \
+    pftapsparser.h
 SOURCES += parse.cpp \
     includes/sqlite3x-master/sqlite3x_command.cpp \
     includes/sqlite3x-master/sqlite3x_connection.cpp \
@@ -25,7 +26,8 @@ SOURCES += parse.cpp \
     bayes.cpp \
     patent.cpp \
     trie.cpp \
-    xmlpatentparser.cpp
+    xmlpatentparser.cpp \
+    pftapsparser.cpp
 
 
 unix|win32: LIBS += -lsqlite3

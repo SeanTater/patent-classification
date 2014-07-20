@@ -27,7 +27,7 @@ enum PatentDialect {GOOGLE, CLEF};
  * Just read from the (non-null) string fields
  *  id, description, abstract, and tags
  */
-class XMLPatentParser : public Patent {
+class XMLPatentParser {
 private:
     /* This exists to keep the document around until all the document's
      * PatentParse's are deleted.
@@ -35,6 +35,7 @@ private:
     shared_ptr<pugi::xml_document> doc;
     pugi::xml_node root;
     PatentDialect dialect;
+    Patent pat;
 
     /**
      * Try to extract a snippet of at least target_length characters from the
@@ -54,13 +55,22 @@ private:
     string extractEnglish(string target_tag_name, unsigned int length=100);
 
     /**
-     * Collect all of the IPCR tags
+     * @brief Extract IPCR classifications
      */
     void extractIPC();
 
     /**
+     * @brief Extract USPC classifications
+     */
+    void extractUSPC();
+
+    /**
+     * @brief Extract ECLA classifications
+     */
+    void extractECLA();
+
+    /**
      * @brief Extract patent claims, with delimiters
-     * @return
      */
     string extractClaims();
 
@@ -75,8 +85,11 @@ public:
      * @brief Parse (possibly multiple) documents from an XML file
      * @param filename
      * @return a list of patent parses
+     * In the case that your XML file is broken (or not XML), you will get an empty list.
      */
-    static vector<XMLPatentParser> parseXml(string filename);
+    static vector<Patent> parseXML(string filename);
+
+    const Patent getPatent() const;
 };
 
 #endif // PATENTPARSE_H
