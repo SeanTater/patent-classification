@@ -26,14 +26,21 @@ public:
         return children.back();
     }
 
-    PFTAPSTag child(const string & name) {
+    PFTAPSTag child(const string & name) const {
         for (auto tag : children)
             if (tag.name == name)
                 return tag;
         return PFTAPSTag("");
     }
 
-    bool empty() {
+    template<typename Func>
+    void eachName(const string& name, Func func) const {
+        for (const PFTAPSTag& child : children)
+            if (child.name == name)
+                func(child);
+    }
+
+    bool empty() const {
         return name.empty();
     }
 };
@@ -42,10 +49,12 @@ public:
 class PFTAPSParser : public Patent
 {
 private:
-    static unsigned int parseLines(PFTAPSTag& parent,
-                        vector<string>& lines,
+    static unsigned int parseLines(PFTAPSTag& parent, vector<string> &ancestors,
+                        vector<string> &lines,
                         unsigned int line_i,
                         unordered_set<string>& rules);
+
+    static PFTAPSTag asTree(string filename);
 public:
     PFTAPSParser();
     static vector<Patent> parseText(string filename);
