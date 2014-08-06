@@ -2,7 +2,6 @@
 
 PFTAPSParser::PFTAPSParser()
 {
-    // starts with HHHHHT
 }
 
 /**
@@ -44,10 +43,30 @@ vector<Patent> PFTAPSParser::parseText(string filename) {
         pat.setClaims(extractClaims(pat_node.child("CLMS")));
         pat.setDescription(extractText(pat_node.child("BSUM")));
         pat.setTitle(pat_node.child("TTL ").value);
-        // seems unique.. what is it?
-        pat.setId("WKU" + pat_node.child("WKU ").value);
+        /* This is the real patent number:
+         *      pat.setId(pat_node.child("REIS").child("PNO ").value);
+         * in some, it is missing! */
+        pat.setId(pat_node.child("WKU ").value);
         // classifications now
-        pat.appendClass(pat.ipc, "moo");
+        for (const PFTAPSTag& klass : pat_node.child("CLAS").children) {
+            if (klass.name == "ICL ") {
+                pat.appendClass(pat.ipc, klass.value);
+            } else if ((klass.name == "OCL " or klass.name == "XCL ") and not klass.value.empty()) {
+                string value = klass.value.substr(0, 3);
+                boost::trim(value);
+                if (klass.value.length() > 3) {
+                    string subsection = klass.value.substr(3, 3);
+                    boost::trim(subsection);
+                    value += "/" + subsection;
+                }
+                if (klass.value.length() > 6) {
+                    string subsubsection = klass.value.substr(6, 2);
+                    boost::trim(subsubsection);
+                    value += "." + subsubsection;
+                }
+                pat.appendClass(pat.uspc, value);
+            }
+        }
         patents.push_back(pat);
     });
     return patents;
@@ -130,7 +149,6 @@ PFTAPSTag PFTAPSParser::asTree(string filename)
 
     cout << "Found " << root.children.size() << " patents by line " << furthest_read << endl;
 
-    // wrong but keeps the compiler from complaining
     return root;
 
 }
@@ -153,7 +171,9 @@ unsigned int PFTAPSParser::parseLines(PFTAPSTag& parent,
     // For each line starting from line_i
     while (line_i < lines.size()) {
         string name = lines[line_i].substr(0, 4);
-        string value = lines[line_i].substr(4);
+        string value;
+        if (lines[line_i].length() > 5)
+            value = lines[line_i].substr(5); // There is an intervening space
         boost::trim(value);
 
         if (name == "    ") {

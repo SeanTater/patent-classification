@@ -61,6 +61,7 @@ void Patent::validate() {
     if (ipc.empty())
         appendErrorLog("Could not find any IPCR tags.");
 }
+
 bool Patent::success() {
     return error_log.empty();
 }
@@ -128,7 +129,7 @@ void Patent::setAbstract(const string &value)
  * Classifications
  */
 
-void Patent::appendClass(string &existing, const string& value) {
+void Patent::appendClass(string &existing, string value) {
     if (existing.find(value) == string::npos)
-        existing += value + " ";
+        existing += value + "\x1f";
 }

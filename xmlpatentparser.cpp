@@ -135,7 +135,7 @@ void XMLPatentParser::extractECLA()
     if (dialect == PatentDialect::CLEF) {
         auto tags_parent = root.first_element_by_path("bibliographic-data/technical-data/classification-ecla");
         for (auto tag_node : tags_parent.children("classification-symbol")) {
-            pat.appendClass(pat.ecla, string(tag_node.child_value()).substr(0, 3));
+            pat.appendClass(pat.ecla, tag_node.child_value());
         }
     }
 }

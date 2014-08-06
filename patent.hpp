@@ -61,7 +61,7 @@ public:
     void setClaims(const string &value);
 
     // Classifications
-    void appendClass(string& existing, const string &value);
+    void appendClass(string& existing, string value);
 
     /**
      * @return Whether the results were valid to add to the DB
