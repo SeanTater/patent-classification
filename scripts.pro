@@ -42,11 +42,11 @@ unix|win32: LIBS += -lsqlite3
 INCLUDEPATH += $$PWD/
 DEPENDPATH += $$PWD/
 
-win32-g++:CONFIG(release, debug|release): PRE_TARGETDEPS += $$PWD/release/libpugixml.a
-else:win32-g++:CONFIG(debug, debug|release): PRE_TARGETDEPS += $$PWD/debug/libpugixml.a
-else:win32:!win32-g++:CONFIG(release, debug|release): PRE_TARGETDEPS += $$PWD/release/pugixml.lib
-else:win32:!win32-g++:CONFIG(debug, debug|release): PRE_TARGETDEPS += $$PWD/debug/pugixml.lib
-else:unix: PRE_TARGETDEPS += $$PWD/libpugixml.a
+#win32-g++:CONFIG(release, debug|release): PRE_TARGETDEPS += $$PWD/release/libpugixml.a
+#else:win32-g++:CONFIG(debug, debug|release): PRE_TARGETDEPS += $$PWD/debug/libpugixml.a
+#else:win32:!win32-g++:CONFIG(release, debug|release): PRE_TARGETDEPS += $$PWD/release/pugixml.lib
+#else:win32:!win32-g++:CONFIG(debug, debug|release): PRE_TARGETDEPS += $$PWD/debug/pugixml.lib
+#else:unix: PRE_TARGETDEPS += $$PWD/libpugixml.a
 
 
 
