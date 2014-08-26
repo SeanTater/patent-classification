@@ -34,9 +34,9 @@ unix|win32: LIBS += -lsqlite3
 
 #Pugixml
 
-win32:CONFIG(release, debug|release): LIBS += -L$$PWD/release/ -lpugixml
-else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/debug/ -lpugixml
-else:unix: LIBS += -L$$PWD/ -lpugixml
+#win32:CONFIG(release, debug|release): LIBS += -L$$PWD/release/ -lpugixml
+#else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/debug/ -lpugixml
+#else:unix: LIBS += -L$$PWD/ -lpugixml
 
 INCLUDEPATH += $$PWD/
 DEPENDPATH += $$PWD/
