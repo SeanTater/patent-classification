@@ -27,7 +27,8 @@ SOURCES += parse.cpp \
     patent.cpp \
     trie.cpp \
     xmlpatentparser.cpp \
-    pftapsparser.cpp
+    pftapsparser.cpp \
+    includes/pugixml.cpp
 
 
 unix|win32: LIBS += -lsqlite3
