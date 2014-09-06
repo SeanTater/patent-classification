@@ -7,6 +7,20 @@
 
 # In[1]:
 
+# alphanumeric tokenizer
+from nltk import RegexpTokenizer
+from nltk.stem import WordNetLemmatizer
+class RawLemmaTokenizer(object):
+    def __init__(self):
+        self.tokenizer = RegexpTokenizer(u'(?u)\\b\\w\\w+\\b')
+        self.wnl = WordNetLemmatizer()
+    def __call__(self, doc):
+        return [self.wnl.lemmatize(t) for t in self.tokenizer.tokenize(doc)]
+
+
+# In[ ]:
+
+# alphabetic tokenizer
 from nltk import RegexpTokenizer
 from nltk.stem import WordNetLemmatizer
 class LemmaTokenizer(object):
