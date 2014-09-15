@@ -27,25 +27,26 @@ SOURCES += parse.cpp \
     patent.cpp \
     trie.cpp \
     xmlpatentparser.cpp \
-    pftapsparser.cpp
+    pftapsparser.cpp \
+    includes/pugixml.cpp
 
 
 unix|win32: LIBS += -lsqlite3
 
 #Pugixml
 
-win32:CONFIG(release, debug|release): LIBS += -L$$PWD/release/ -lpugixml
-else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/debug/ -lpugixml
-else:unix: LIBS += -L$$PWD/ -lpugixml
+#win32:CONFIG(release, debug|release): LIBS += -L$$PWD/release/ -lpugixml
+#else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/debug/ -lpugixml
+#else:unix: LIBS += -L$$PWD/ -lpugixml
 
 INCLUDEPATH += $$PWD/
 DEPENDPATH += $$PWD/
 
-win32-g++:CONFIG(release, debug|release): PRE_TARGETDEPS += $$PWD/release/libpugixml.a
-else:win32-g++:CONFIG(debug, debug|release): PRE_TARGETDEPS += $$PWD/debug/libpugixml.a
-else:win32:!win32-g++:CONFIG(release, debug|release): PRE_TARGETDEPS += $$PWD/release/pugixml.lib
-else:win32:!win32-g++:CONFIG(debug, debug|release): PRE_TARGETDEPS += $$PWD/debug/pugixml.lib
-else:unix: PRE_TARGETDEPS += $$PWD/libpugixml.a
+#win32-g++:CONFIG(release, debug|release): PRE_TARGETDEPS += $$PWD/release/libpugixml.a
+#else:win32-g++:CONFIG(debug, debug|release): PRE_TARGETDEPS += $$PWD/debug/libpugixml.a
+#else:win32:!win32-g++:CONFIG(release, debug|release): PRE_TARGETDEPS += $$PWD/release/pugixml.lib
+#else:win32:!win32-g++:CONFIG(debug, debug|release): PRE_TARGETDEPS += $$PWD/debug/pugixml.lib
+#else:unix: PRE_TARGETDEPS += $$PWD/libpugixml.a
 
 
 
